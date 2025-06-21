@@ -56,7 +56,7 @@ struct Turf: Codable, Identifiable {
     
     init(coordinate: CLLocationCoordinate2D) {
         // Create hex-grid aligned coordinate
-        let hexSize = 0.0001 // ~11 meters
+        let hexSize = GameConstants.hexGridSize
         let hexLat = round(coordinate.latitude / hexSize) * hexSize
         let hexLon = round(coordinate.longitude / hexSize) * hexSize
         
@@ -115,7 +115,7 @@ struct AttackLog: Codable, Identifiable {
 // MARK: - Game Constants
 struct GameConstants {
     static let maxCaptureDistance: Double = 25.0 // meters
-    static let hexGridSize: Double = 0.0001 // ~11 meters per hex
+    static let hexGridSize: Double = 0.09 // ~10 km per hex
     static let baseIncomeRate: Double = 1.0 // $ per minute
     static let maxDefenseMultiplier: Int = 5
     static let lootPercentage: Double = 0.25 // 25% of vault on successful attack
