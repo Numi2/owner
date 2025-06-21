@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import QuartzCore
 
 /// Safety service to handle potential runtime issues and null pointer exceptions
 class SafetyService {
