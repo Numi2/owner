@@ -21,15 +21,19 @@ struct MapView: UIViewRepresentable {
         mapView.showsUserLocation = true
         mapView.userTrackingMode = .none
         
-        // Set initial region to user location if available
-        if let location = locationService.currentLocation {
-            let region = MKCoordinateRegion(
-                center: location.coordinate,
-                latitudinalMeters: 500,
-                longitudinalMeters: 500
-            )
-            mapView.setRegion(region, animated: false)
-        }
+        // Add tap gesture recognizer
+        let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleMapTap(_:)))
+        mapView.addGestureRecognizer(tapGesture)
+        
+        // Set initial region - use default location if no user location
+        let initialLocation = locationService.currentLocation?.coordinate ?? 
+                            CLLocationCoordinate2D(latitude: 37.3349, longitude: -122.0090)
+        let region = MKCoordinateRegion(
+            center: initialLocation,
+            latitudinalMeters: 500,
+            longitudinalMeters: 500
+        )
+        mapView.setRegion(region, animated: false)
         
         return mapView
     }
@@ -38,7 +42,7 @@ struct MapView: UIViewRepresentable {
         // Update hex overlays
         updateHexOverlays(on: uiView)
         
-        // Update user location region
+        // Update user location region if available
         if let location = locationService.currentLocation {
             let currentRegion = uiView.region
             let userLocation = location.coordinate
@@ -96,18 +100,27 @@ struct MapView: UIViewRepresentable {
             return MKOverlayRenderer(overlay: overlay)
         }
         
-        func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
-            // Handle annotation selection if needed
-        }
-        
-        func mapView(_ mapView: MKMapView, didTapAt coordinate: CLLocationCoordinate2D) {
-            // Find the turf at this coordinate
-            let hexCoordinate = parent.locationService.hexGridCoordinate(from: coordinate)
+        @objc func handleMapTap(_ gesture: UITapGestureRecognizer) {
+            let mapView = gesture.view as! MKMapView
+            let point = gesture.location(in: mapView)
+            let coordinate = mapView.convert(point, toCoordinateFrom: mapView)
             
-            if let turf = parent.gameManager.nearbyTurfs.first(where: { 
-                abs($0.coordinate.latitude - hexCoordinate.latitude) < 0.00001 &&
-                abs($0.coordinate.longitude - hexCoordinate.longitude) < 0.00001
-            }) {
+            // Find the nearest turf to the tap location
+            var nearestTurf: Turf?
+            var minDistance = Double.infinity
+            
+            for turf in parent.gameManager.nearbyTurfs {
+                let turfLocation = CLLocation(latitude: turf.latitude, longitude: turf.longitude)
+                let tapLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+                let distance = turfLocation.distance(from: tapLocation)
+                
+                if distance < minDistance && distance < 50 { // Within 50 meters
+                    minDistance = distance
+                    nearestTurf = turf
+                }
+            }
+            
+            if let turf = nearestTurf {
                 parent.selectedTurf = turf
                 parent.showingActionSheet = true
             }
@@ -115,13 +128,13 @@ struct MapView: UIViewRepresentable {
         
         private func hexColor(for turf: Turf) -> UIColor {
             if turf.isUnderAttack {
-                return .red
+                return .systemRed
             } else if turf.isNeutral {
-                return .gray
+                return .systemGray
             } else if turf.ownerID == parent.gameManager.currentPlayer?.id {
-                return .blue
+                return .systemBlue
             } else {
-                return .red
+                return .systemRed
             }
         }
     }
