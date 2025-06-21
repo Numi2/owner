@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import GameKit
 
 struct HUDView: View {
     @EnvironmentObject var gameManager: GameManager
