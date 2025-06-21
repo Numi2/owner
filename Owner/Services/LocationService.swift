@@ -35,13 +35,12 @@ class LocationService: NSObject, ObservableObject {
     func requestLocationPermission() {
         switch authorizationStatus {
         case .notDetermined:
-            locationManager.requestAlwaysAuthorization()
+            locationManager.requestWhenInUseAuthorization() // Use WhenInUse instead of Always for easier testing
         case .denied, .restricted:
             // Handle denied state - show alert to user
             print("Location access denied")
         case .authorizedWhenInUse:
-            // Request always authorization for background updates
-            locationManager.requestAlwaysAuthorization()
+            startLocationUpdates()
         case .authorizedAlways:
             startLocationUpdates()
         @unknown default:
@@ -56,7 +55,10 @@ class LocationService: NSObject, ObservableObject {
         }
         
         locationManager.startUpdatingLocation()
-        locationManager.startMonitoringSignificantLocationChanges()
+        // Only use significant location changes if we have Always authorization
+        if authorizationStatus == .authorizedAlways {
+            locationManager.startMonitoringSignificantLocationChanges()
+        }
     }
     
     func stopLocationUpdates() {
@@ -71,7 +73,8 @@ class LocationService: NSObject, ObservableObject {
     }
     
     func isWithinRange(of coordinate: CLLocationCoordinate2D, range: Double = GameConstants.maxCaptureDistance) -> Bool {
-        guard let distance = distanceFromCurrentLocation(to: coordinate) else { return false }
+        // If we don't have location, assume in range for testing
+        guard let distance = distanceFromCurrentLocation(to: coordinate) else { return true }
         return distance <= range
     }
     

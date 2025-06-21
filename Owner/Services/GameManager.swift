@@ -37,6 +37,9 @@ class GameManager: ObservableObject {
         // Initialize player
         if let playerId = gameCenterService.localPlayer?.playerID {
             currentPlayer = Player(gamePlayerID: playerId)
+        } else {
+            // Create a test player if GameCenter isn't available
+            currentPlayer = Player(gamePlayerID: "test_player_\(UUID().uuidString)")
         }
         
         // Start income timer
@@ -44,6 +47,63 @@ class GameManager: ObservableObject {
         
         // Subscribe to location updates if location service is available
         setupLocationSubscription()
+        
+        print("GameManager initialized with player: \(currentPlayer?.id ?? "unknown")")
+    }
+    
+    func forceInitialize() {
+        // Force initialization even if services aren't ready
+        if currentPlayer == nil {
+            currentPlayer = Player(gamePlayerID: "test_player_\(UUID().uuidString)")
+        }
+        
+        // Generate some test turfs if we don't have location
+        if nearbyTurfs.isEmpty {
+            generateTestTurfs()
+        }
+        
+        print("GameManager force initialized")
+    }
+    
+    func generateTestTurfs() {
+        // Generate test turfs around a default location (Apple Park)
+        let defaultLocation = CLLocationCoordinate2D(latitude: 37.3349, longitude: -122.0090)
+        
+        nearbyTurfs.removeAll()
+        
+        // Generate a 7x7 grid of turfs
+        for latOffset in -3...3 {
+            for lonOffset in -3...3 {
+                let hexLat = defaultLocation.latitude + Double(latOffset) * GameConstants.hexGridSize
+                let hexLon = defaultLocation.longitude + Double(lonOffset) * GameConstants.hexGridSize
+                
+                let hexCoordinate = CLLocationCoordinate2D(latitude: hexLat, longitude: hexLon)
+                let turfId = "\(hexLat):\(hexLon)"
+                
+                var turf = Turf(coordinate: hexCoordinate)
+                
+                // Make some turfs owned by different players and add some cash
+                let random = Int.random(in: 0...10)
+                if random < 3 {
+                    // 30% chance of being owned by player
+                    turf.ownerID = currentPlayer?.id
+                    turf.vaultCash = Double.random(in: 5...50)
+                    turf.defenseMultiplier = Int.random(in: 1...3)
+                } else if random < 6 {
+                    // 30% chance of being owned by others
+                    turf.ownerID = "enemy_\(Int.random(in: 1...5))"
+                    turf.vaultCash = Double.random(in: 10...100)
+                    turf.defenseMultiplier = Int.random(in: 1...5)
+                }
+                // 40% remain neutral
+                
+                allTurfs[turfId] = turf
+                nearbyTurfs.append(turf)
+            }
+        }
+        
+        updatePlayerTurfs()
+        print("Generated \(nearbyTurfs.count) test turfs")
     }
     
     private func setupLocationSubscription() {
@@ -127,9 +187,18 @@ class GameManager: ObservableObject {
     // MARK: - Game Actions
     
     func captureTurf(_ turf: Turf) {
-        guard let currentPlayer = currentPlayer else { return }
-        guard turf.isNeutral else { return }
-        guard locationService?.isWithinRange(of: turf.coordinate) == true else { return }
+        guard let currentPlayer = currentPlayer else { 
+            print("❌ No current player found!")
+            return 
+        }
+        guard turf.isNeutral else { 
+            print("❌ Turf is not neutral: \(turf.ownerID ?? "unknown owner")")
+            return 
+        }
+        guard locationService?.isWithinRange(of: turf.coordinate) == true else { 
+            print("❌ Not in range of turf")
+            return 
+        }
         
         var updatedTurf = turf
         updatedTurf.ownerID = currentPlayer.id
@@ -149,13 +218,22 @@ class GameManager: ObservableObject {
             gameCenterService.reportAchievement(GameCenterService.Achievements.tenTurfs)
         }
         
-        print("Captured turf: \(turf.id)")
+        print("✅ Captured turf: \(turf.id) - Player now owns \(playerTurfs.count) turfs")
     }
     
     func collectFromTurf(_ turf: Turf) {
-        guard turf.ownerID == currentPlayer?.id else { return }
-        guard locationService?.isWithinRange(of: turf.coordinate) == true else { return }
-        guard turf.vaultCash > 0 else { return }
+        guard turf.ownerID == currentPlayer?.id else { 
+            print("❌ Can't collect from turf you don't own")
+            return 
+        }
+        guard locationService?.isWithinRange(of: turf.coordinate) == true else { 
+            print("❌ Not in range of turf")
+            return 
+        }
+        guard turf.vaultCash > 0 else { 
+            print("❌ No cash to collect from turf")
+            return 
+        }
         
         let collected = turf.vaultCash
         walletBalance += collected
@@ -170,13 +248,22 @@ class GameManager: ObservableObject {
         }
         updatePlayerTurfs()
         
-        print("Collected $\(collected) from turf")
+        print("✅ Collected $\(collected) from turf - Wallet balance: $\(walletBalance)")
     }
     
     func investInTurf(_ turf: Turf, amount: Double) {
-        guard turf.ownerID == currentPlayer?.id else { return }
-        guard locationService?.isWithinRange(of: turf.coordinate) == true else { return }
-        guard walletBalance >= amount else { return }
+        guard turf.ownerID == currentPlayer?.id else { 
+            print("❌ Can't invest in turf you don't own")
+            return 
+        }
+        guard locationService?.isWithinRange(of: turf.coordinate) == true else { 
+            print("❌ Not in range of turf")
+            return 
+        }
+        guard walletBalance >= amount else { 
+            print("❌ Insufficient funds - Need $\(amount), have $\(walletBalance)")
+            return 
+        }
         
         walletBalance -= amount
         
@@ -190,15 +277,30 @@ class GameManager: ObservableObject {
         }
         updatePlayerTurfs()
         
-        print("Invested $\(amount) in turf")
+        print("✅ Invested $\(amount) in turf - Turf vault: $\(updatedTurf.vaultCash), Wallet: $\(walletBalance)")
     }
     
     func attackTurf(_ turf: Turf, weaponPack: WeaponPack) {
-        guard let currentPlayer = currentPlayer else { return }
-        guard turf.ownerID != currentPlayer.id else { return }
-        guard !turf.isNeutral else { return }
-        guard locationService?.isWithinRange(of: turf.coordinate) == true else { return }
-        guard walletBalance >= weaponPack.cost else { return }
+        guard let currentPlayer = currentPlayer else { 
+            print("❌ No current player found!")
+            return 
+        }
+        guard turf.ownerID != currentPlayer.id else { 
+            print("❌ Can't attack your own turf")
+            return 
+        }
+        guard !turf.isNeutral else { 
+            print("❌ Can't attack neutral turf - capture it instead")
+            return 
+        }
+        guard locationService?.isWithinRange(of: turf.coordinate) == true else { 
+            print("❌ Not in range of turf")
+            return 
+        }
+        guard walletBalance >= weaponPack.cost else { 
+            print("❌ Insufficient funds for weapon - Need $\(weaponPack.cost), have $\(walletBalance)")
+            return 
+        }
         
         // Deduct weapon cost
         walletBalance -= weaponPack.cost
@@ -220,9 +322,9 @@ class GameManager: ObservableObject {
             updatedTurf.lastIncomeAt = Date()
             allTurfs[turf.id] = updatedTurf
             
-            print("Attack succeeded! Captured turf and looted $\(loot)")
+            print("✅ Attack succeeded! Captured turf and looted $\(loot) - AV:\(attackValue) vs DV:\(defenseValue)")
         } else {
-            print("Attack failed! Lost $\(weaponPack.cost)")
+            print("❌ Attack failed! Lost $\(weaponPack.cost) - AV:\(attackValue) vs DV:\(defenseValue)")
         }
         
         // Update local arrays
