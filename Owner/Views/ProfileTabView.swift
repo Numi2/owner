@@ -9,7 +9,7 @@ struct ProfileTabView: View {
     @State private var showingSettings = false
     @State private var showingAchievements = false
     
-    var body: some View {
+    var body: some Viewg {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
