@@ -32,7 +32,7 @@ class GameCenterService: ObservableObject {
                 return
             }
             
-            if let viewController = viewController {
+            if viewController != nil {
                 // Present authentication view controller
                 // Note: In a real app, you'd present this from your main view controller
                 print("Need to present Game Center authentication")
@@ -60,14 +60,17 @@ class GameCenterService: ObservableObject {
     func submitScore(_ score: Int, category: String = "net_worth") {
         guard isAuthenticated else { return }
         
-        let scoreObj = GKScore(leaderboardIdentifier: category)
-        scoreObj.value = Int64(score)
-        
-        GKScore.report([scoreObj]) { error in
-            if let error = error {
-                print("Score submission error: \(error.localizedDescription)")
-            } else {
+        Task {
+            do {
+                try await GKLeaderboard.submitScore(
+                    score,
+                    context: 0,
+                    player: GKLocalPlayer.local,
+                    leaderboardIDs: [category]
+                )
                 print("Score submitted successfully")
+            } catch {
+                print("Score submission error: \(error.localizedDescription)")
             }
         }
     }
@@ -75,9 +78,9 @@ class GameCenterService: ObservableObject {
     func showLeaderboard() {
         guard isAuthenticated else { return }
         
-        let viewController = GKGameCenterViewController(state: .leaderboards)
-        // In a real app, present this from your main view controller
-        print("Show leaderboard")
+        // In a real app, create and present GKGameCenterViewController from your main view controller
+        // Example: let viewController = GKGameCenterViewController(state: .leaderboards)
+        print("Show leaderboard - implement presentation in your view controller")
     }
     
     // MARK: - Achievements
