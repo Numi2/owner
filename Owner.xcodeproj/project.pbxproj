@@ -402,6 +402,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Owner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Owner;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.strategy-games";
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Turf Cash needs continuous location access to track your territory and enable passive income generation even when the app is backgrounded.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Turf Cash needs continuous location access to track your territory and enable passive income generation even when the app is backgrounded.";
@@ -447,6 +448,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Owner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Owner;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.strategy-games";
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Turf Cash needs continuous location access to track your territory and enable passive income generation even when the app is backgrounded.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Turf Cash needs continuous location access to track your territory and enable passive income generation even when the app is backgrounded.";
