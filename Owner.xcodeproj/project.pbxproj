@@ -29,9 +29,28 @@
 		F4522BBF2E0662EA00AC21B7 /* OwnerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OwnerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		F436B30D2E06FB630039244C /* Exceptions for "Owner" folder in "Owner" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AGENT/addict/Assets/prompts.txt,
+				AGENT/addict/Assets/README.md,
+				AGENT/addict/phase.md,
+				AGENT/addict/pvp_async.md,
+				AGENT/addict/sting_notes.md,
+				AGENT/addict/tasks.md,
+				LIQUID_GLASS_NAVIGATION.md,
+			);
+			target = F4522B9B2E0662E900AC21B7 /* Owner */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		F4522B9E2E0662E900AC21B7 /* Owner */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				F436B30D2E06FB630039244C /* Exceptions for "Owner" folder in "Owner" target */,
+			);
 			path = Owner;
 			sourceTree = "<group>";
 		};
