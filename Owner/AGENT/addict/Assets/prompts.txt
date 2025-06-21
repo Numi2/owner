@@ -1,0 +1,41 @@
+Map Screen Background & UI Frame
+"Ultra-clean urban street map overlay viewed from slight isometric angle, dark asphalt texture base, subtle grid lines, soft neon glow accents in electric blue (#1E90FF) and danger red (#FF5C5C), hex-shaped zone outlines, thin accent lines in gold (#FFD700), minimal UI framing bar top and bottom, high-resolution 2048x1024, crisp vector style, futuristic but real-world, flat graphic look, no text, --ar 2:1 --v 5 --q 2"
+
+Hex Tile – Neutral
+"Single hexagon tile, matte concrete texture, mid-tone grey (#7E7E7E), beveled edges, slight drop shadow, flat vector icon style, 1024x1024, transparent background, --no text --v 5"
+
+Hex Tile – Owned (Player)
+"Single hexagon tile, glossy surface with subtle electric blue fill (#1E90FF), inner glow, beveled metallic border, soft pulse highlight, 1024x1024, transparent background, --no text --v 5"
+
+Hex Tile – Rival
+"Single hexagon tile, glossy surface with bold danger red fill (#FF5C5C), faint crack texture, metallic border, 1024x1024, transparent background, --no text --v 5"
+
+Action Sheet Panel
+"Clean translucent charcoal panel card, rounded corners, urban UI aesthetics, subtle noise texture, 80% opacity black, gold accent divider line (#FFD700) at top, drop shadow, iOS style, 1242x2208 portrait, --v 5 --q 2"
+
+HUD Icon – Wallet
+"Flat vector icon of minimalist wallet with cash corner peeking, primary gold color (#FFD700) stroke on transparent background, high contrast, 512x512, --v 5"
+
+HUD Icon – Shield (Defense)
+"Flat vector icon of modern shield, electric blue outline (#1E90FF), minimal, 512x512, transparent background, --v 5"
+
+HUD Icon – Crosshair (Attack)
+"Flat vector icon crosshair / target reticle, bold danger red stroke (#FF5C5C), 512x512, transparent background, --v 5"
+
+HUD Icon – Arrow-Down (Collect)
+"Flat vector downward arrow into open tray, neutral grey stroke (#7E7E7E) with gold accent tip (#FFD700), 512x512, transparent background, --v 5"
+
+Mini-Game Timing Bar & Slider
+"Horizontal progress bar UI element 800x200, dark asphalt backdrop, central bar with gradient fill electric blue to gold, moving slider knob neon yellow (#FFD700) glow, slight cyber-punk aesthetic, no text, --v 5 --ar 4:1"
+
+Capture Success Animation (use --video)
+"Sequence of hex tile turning from grey to electric blue with quick spray-paint wipe effect, subtle particle sparks in gold (#FFD700), 1-second loop, urban style, --video --v 5"
+
+Collect Animation
+"Sequence showing coins icon burst upward from hex tile, gold coin particles, light trail, transparent background, 1-second loop, --video --v 5"
+
+Invest Animation
+"Stack of cash bills flowing from wallet icon into hex tile vault, electric blue glow ramping up DV indicator bar, 1-second loop, transparent background, --video --v 5"
+
+Attack Animation
+"Red reticle locks on hex tile, quick pulse, flash to red then fade to grey cracked effect, subtle camera shake, 1-second loop, transparent background, --video --v 5"
