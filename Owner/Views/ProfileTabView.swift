@@ -116,7 +116,7 @@ struct ProfileHeaderView: View {
     }
     
     private func calculateProgress() -> Int {
-        let netWorth = gameManager.netWorth()
+        let netWorth = max(gameManager.netWorth(), 1)
         let currentLevelThreshold = pow(10.0, Double(calculateLevel() - 1))
         let nextLevelThreshold = pow(10.0, Double(calculateLevel()))
         let progress = (netWorth - currentLevelThreshold) / (nextLevelThreshold - currentLevelThreshold)
