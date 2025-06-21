@@ -9,6 +9,7 @@ import SwiftUI
 
 @main
 struct TurfCashApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var gameManager = GameManager()
     @StateObject private var locationService = LocationService()
     @StateObject private var gameCenterService = GameCenterService.shared
