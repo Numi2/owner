@@ -25,28 +25,37 @@ class GameCenterService: ObservableObject {
         localPlayer = GKLocalPlayer.local
         
         GKLocalPlayer.local.authenticateHandler = { [weak self] viewController, error in
-            if let error = error {
-                self?.authError = error
-                self?.isAuthenticated = false
-                print("Game Center authentication error: \(error.localizedDescription)")
-                return
-            }
-            
-            if viewController != nil {
-                // Present authentication view controller
-                // Note: In a real app, you'd present this from your main view controller
-                print("Need to present Game Center authentication")
-                return
-            }
-            
-            if GKLocalPlayer.local.isAuthenticated {
-                self?.isAuthenticated = true
-                self?.localPlayer = GKLocalPlayer.local
-                print("Game Center authenticated: \(GKLocalPlayer.local.displayName)")
-                self?.loadPlayerData()
-            } else {
-                self?.isAuthenticated = false
-                print("Game Center not authenticated")
+            DispatchQueue.main.async {
+                if let error = error {
+                    self?.authError = error
+                    self?.isAuthenticated = false
+                    print("Game Center authentication error: \(error.localizedDescription)")
+                    
+                    // Check if this is a missing entitlement error
+                    let nsError = error as NSError
+                    if nsError.domain == "GKErrorDomain" && nsError.code == 3 {
+                        print("⚠️  Game Center entitlement missing or invalid. Please check project entitlements.")
+                    }
+                    return
+                }
+                
+                if let viewController = viewController {
+                    // Present authentication view controller
+                    // Note: In a real app, you'd present this from your main view controller
+                    print("Need to present Game Center authentication view controller")
+                    // For now, we'll continue without authentication
+                    return
+                }
+                
+                if GKLocalPlayer.local.isAuthenticated {
+                    self?.isAuthenticated = true
+                    self?.localPlayer = GKLocalPlayer.local
+                    print("✅ Game Center authenticated: \(GKLocalPlayer.local.displayName ?? "Unknown")")
+                    self?.loadPlayerData()
+                } else {
+                    self?.isAuthenticated = false
+                    print("❌ Game Center not authenticated")
+                }
             }
         }
     }

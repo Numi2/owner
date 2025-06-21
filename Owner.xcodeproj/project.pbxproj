@@ -396,9 +396,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = Owner/Owner.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 79RNR2QWRF;
-				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Owner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Turf Cash";
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Turf Cash needs continuous location access to track your territory and enable passive income generation even when the app is backgrounded.";
@@ -438,9 +439,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = Owner/Owner.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 79RNR2QWRF;
-				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Owner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Turf Cash";
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Turf Cash needs continuous location access to track your territory and enable passive income generation even when the app is backgrounded.";
