@@ -35,6 +35,14 @@ struct MapView: UIViewRepresentable {
         )
         mapView.setRegion(region, animated: false)
         
+        // Add size validation to prevent Metal layer issues
+        DispatchQueue.main.async {
+            if mapView.bounds.size.width > 0 && mapView.bounds.size.height > 0 {
+                // Safe to proceed with Metal layer operations
+                mapView.setNeedsDisplay()
+            }
+        }
+        
         return mapView
     }
     
