@@ -21,6 +21,9 @@ struct MapView: UIViewRepresentable {
         mapView.showsUserLocation = true
         mapView.userTrackingMode = .none
         
+        // Store reference to mapView in coordinator
+        context.coordinator.mapView = mapView
+        
         // Add tap gesture recognizer
         let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleMapTap(_:)))
         mapView.addGestureRecognizer(tapGesture)
@@ -42,6 +45,14 @@ struct MapView: UIViewRepresentable {
                 mapView.setNeedsDisplay()
             }
         }
+        
+        // Listen for center on user notification
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.centerOnUser(_:)),
+            name: .centerMapOnUser,
+            object: nil
+        )
         
         return mapView
     }
@@ -87,6 +98,7 @@ struct MapView: UIViewRepresentable {
     
     class Coordinator: NSObject, MKMapViewDelegate {
         var parent: MapView
+        weak var mapView: MKMapView?
         
         init(_ parent: MapView) {
             self.parent = parent
@@ -132,6 +144,18 @@ struct MapView: UIViewRepresentable {
                 parent.selectedTurf = turf
                 parent.showingActionSheet = true
             }
+        }
+        
+        @objc func centerOnUser(_ notification: Notification) {
+            guard let mapView = self.mapView,
+                  let location = notification.object as? CLLocation else { return }
+            
+            let region = MKCoordinateRegion(
+                center: location.coordinate,
+                latitudinalMeters: 500,
+                longitudinalMeters: 500
+            )
+            mapView.setRegion(region, animated: true)
         }
         
         private func hexColor(for turf: Turf) -> UIColor {

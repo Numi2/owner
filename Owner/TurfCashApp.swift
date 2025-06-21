@@ -16,7 +16,7 @@ struct TurfCashApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainView()
                 .environmentObject(gameManager)
                 .environmentObject(locationService)
                 .environmentObject(gameCenterService)
