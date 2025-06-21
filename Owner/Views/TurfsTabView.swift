@@ -175,10 +175,7 @@ struct TurfRowView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-        .padding()
-        .background(.thinMaterial)
-        .cornerRadius(12)
-        .shadow(radius: 2)
+        .glassCard(cornerRadius: 12, shadowRadius: 6)
     }
 }
 

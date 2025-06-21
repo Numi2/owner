@@ -55,9 +55,7 @@ struct ActionSheetView: View {
                         .foregroundColor(isInRange ? .green : .red)
                         .fontWeight(.medium)
                 }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(12)
+                .glassCard()
                 
                 // Turf Status
                 VStack(spacing: 8) {
@@ -97,15 +95,14 @@ struct ActionSheetView: View {
                         }
                     }
                 }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(12)
+                .glassCard()
                 
                 // Actions
                 VStack(spacing: 12) {
                     if turf.isNeutral && isInRange {
                         // Capture Action
                         Button(action: {
+                            HapticManager.shared.success()
                             gameManager.captureTurf(turf)
                             dismiss()
                         }) {
@@ -116,12 +113,14 @@ struct ActionSheetView: View {
                                 .foregroundColor(.white)
                                 .cornerRadius(12)
                         }
+                        .buttonStyle(ScaleButtonStyle())
                     }
                     
                     if isPlayerOwned && isInRange {
                         // Player-owned actions
                         if turf.vaultCash > 0 {
                             Button(action: {
+                                HapticManager.shared.success()
                                 gameManager.collectFromTurf(turf)
                                 dismiss()
                             }) {
@@ -132,9 +131,11 @@ struct ActionSheetView: View {
                                     .foregroundColor(.white)
                                     .cornerRadius(12)
                             }
+                            .buttonStyle(ScaleButtonStyle())
                         }
                         
                         Button(action: {
+                            HapticManager.shared.impact()
                             showingInvestAlert = true
                         }) {
                             Label("Invest Cash", systemImage: "arrow.up.circle.fill")
@@ -144,6 +145,7 @@ struct ActionSheetView: View {
                                 .foregroundColor(.white)
                                 .cornerRadius(12)
                         }
+                        .buttonStyle(ScaleButtonStyle())
                     }
                     
                     if !isPlayerOwned && !turf.isNeutral && isInRange && !turf.isUnderAttack {
@@ -156,6 +158,7 @@ struct ActionSheetView: View {
                                 Button(action: {
                                     selectedWeapon = weapon
                                     showingAttackConfirmation = true
+                                    HapticManager.shared.impact()
                                 }) {
                                     HStack {
                                         VStack(alignment: .leading) {
@@ -175,6 +178,7 @@ struct ActionSheetView: View {
                                     .cornerRadius(8)
                                 }
                                 .disabled(gameManager.walletBalance < weapon.cost)
+                                .buttonStyle(ScaleButtonStyle())
                             }
                         }
                     }
