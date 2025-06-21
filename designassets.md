@@ -1,6 +1,6 @@
 # Turf Cash — Design Assets & MidJourney Prompts
 
-This document outlines all visual assets required for the Turf Cash iOS game, complete with detailed MidJourney prompts and usage specifications.
+This document outlines all visual assets required for the Owner iOS game, complete with detailed MidJourney prompts and usage specifications.
 
 ## Color Palette Reference
 **Primary Colors:**
@@ -69,7 +69,7 @@ Wallet icon for mobile game HUD, modern flat design, green color #34C759, cash m
 **Format:** PNG with transparency, 128×128 base
 **MidJourney Prompt:**
 ```
-Shield icon for mobile game defense stat, blue color #007AFF, modern tactical design, protective symbol, clean geometric style, game UI icon, PNG transparent background, clearly readable at small sizes, military-inspired, --ar 1:1 --style raw
+ PNG transparent background, clearly readable at small sizes, military-inspired, --ar 1:1 --style raw
 ```
 
 ### 2.3 Crosshair Icon (Attack)
