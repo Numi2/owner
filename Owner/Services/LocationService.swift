@@ -72,7 +72,7 @@ class LocationService: NSObject, ObservableObject {
         return currentLocation.distance(from: targetLocation)
     }
     
-    func isWithinRange(of coordinate: CLLocationCoordinate2D, range: Double = GameConstants.maxCaptureDistance) -> Bool {
+    func isWithinRange(of coordinate: CLLocationCoordinate2D, range: Double = 25.0) -> Bool {
         // If we don't have location, assume in range for testing
         guard let distance = distanceFromCurrentLocation(to: coordinate) else { return true }
         return distance <= range

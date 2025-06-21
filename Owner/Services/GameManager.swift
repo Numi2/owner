@@ -8,6 +8,7 @@
 import Foundation
 import CoreLocation
 import Combine
+import GameKit
 
 @MainActor
 class GameManager: ObservableObject {
@@ -35,8 +36,9 @@ class GameManager: ObservableObject {
         }
         
         // Initialize player
-        if let playerId = gameCenterService.localPlayer?.playerID {
-            currentPlayer = Player(gamePlayerID: playerId)
+        if let localPlayer = gameCenterService.localPlayer {
+            // Use gamePlayerID instead of deprecated playerID
+            currentPlayer = Player(gamePlayerID: localPlayer.gamePlayerID)
         } else {
             // Create a test player if GameCenter isn't available
             currentPlayer = Player(gamePlayerID: "test_player_\(UUID().uuidString)")
@@ -120,7 +122,9 @@ class GameManager: ObservableObject {
     
     private func startIncomeTimer() {
         incomeTimer = Timer.scheduledTimer(withTimeInterval: GameConstants.incomeInterval, repeats: true) { [weak self] _ in
-            self?.processPassiveIncome()
+            Task { @MainActor in
+                self?.processPassiveIncome()
+            }
         }
     }
     
@@ -153,7 +157,6 @@ class GameManager: ObservableObject {
     }
     
     private func updateNearbyTurfs(around coordinate: CLLocationCoordinate2D) {
-        let radius = 0.001 // ~100m radius
         var nearby: [Turf] = []
         
         // Generate hex grid around current location
