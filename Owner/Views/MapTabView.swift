@@ -35,7 +35,10 @@ struct MapTabView: View {
                             Spacer()
                             
                             // Center on user location button
-                            Button(action: centerOnUserLocation) {
+                            Button(action: {
+                                HapticManager.shared.impact(.light)
+                                centerOnUserLocation()
+                            }) {
                                 Image(systemName: "location.fill")
                                     .font(.system(size: 20))
                                     .foregroundColor(.blue)
@@ -46,6 +49,7 @@ struct MapTabView: View {
                             }
                             .padding(.trailing)
                             .padding(.bottom, 100) // Above tab bar
+                            .buttonStyle(ScaleButtonStyle())
                         }
                     }
                 } else {
@@ -95,21 +99,9 @@ struct LoadingView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            ZStack {
-                Circle()
-                    .stroke(lineWidth: 3)
-                    .opacity(0.3)
-                    .foregroundColor(.blue)
-                    .frame(width: 60, height: 60)
-                
-                Circle()
-                    .trim(from: 0, to: 0.7)
-                    .stroke(style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .foregroundColor(.blue)
-                    .frame(width: 60, height: 60)
-                    .rotationEffect(Angle(degrees: isAnimating ? 360 : 0))
-                    .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: isAnimating)
-            }
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                .scaleEffect(2)
             
             Text("Initializing TurfCash")
                 .font(.title2)
@@ -119,10 +111,7 @@ struct LoadingView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
-        .padding(40)
-        .background(.thinMaterial)
-        .cornerRadius(20)
-        .shadow(radius: 10)
+        .glassCard(cornerRadius: 20, shadowRadius: 10)
         .onAppear {
             isAnimating = true
         }

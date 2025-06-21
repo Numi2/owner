@@ -71,7 +71,7 @@ struct HUDView: View {
                 }
                 
                 // Expand Button
-                Button(action: { withAnimation(.spring()) { isExpanded.toggle() } }) {
+                Button(action: { withAnimation(.spring()) { HapticManager.shared.impact(.light); isExpanded.toggle() } }) {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -98,10 +98,7 @@ struct HUDView: View {
                 ))
             }
         }
-        .padding()
-        .background(.thinMaterial)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+        .glassCard()
     }
     
     private func calculateIncome() -> Int {
