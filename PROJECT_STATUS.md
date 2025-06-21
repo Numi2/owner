@@ -114,14 +114,6 @@ The game is currently fully functional for local-only gameplay with the followin
 - Handle network connectivity issues gracefully
 - Optimize for battery life during background operation
 
-## 🚀 Phase 4: Combat Mini-Game (Future)
-
-### Planned Features
-- 15-second timing bar mini-game
-- ±10% attack value modifier based on skill
-- Enhanced combat animations
-- Balance adjustments based on player data
-
 ## 🎨 Phase 5: Art & Animation (Future)
 
 ### Planned Assets
@@ -158,7 +150,7 @@ The game is currently fully functional for local-only gameplay with the followin
 ### Code Quality
 - 100% Swift 5.0 compatibility
 - SwiftUI best practices followed
-- Comprehensive error handling
+- error handling
 - Memory-efficient location tracking
 - Thread-safe game state management
 
