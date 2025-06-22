@@ -24,6 +24,7 @@ class GameManager: ObservableObject {
     private var allTurfs: [String: Turf] = [:]
     private var incomeTimer: Timer?
     private var attackTimer: Timer?
+    private var proximityTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
     
     // Services - these will be injected via environment
@@ -50,6 +51,9 @@ class GameManager: ObservableObject {
         
         // New: Start attack timer
         startAttackTimer()
+        
+        // New: Start proximity timer
+        startProximityTimer()
         
         // Subscribe to location updates if location service is available
         setupLocationSubscription()
@@ -186,7 +190,7 @@ class GameManager: ObservableObject {
     private func processActiveAttacks() {
         let now = Date()
         for (turfId, var turf) in allTurfs {
-            guard turf.isUnderAttack, let attackStartAt = turf.attackStartAt, let attackerID = turf.attackerID else { continue }
+            guard turf.isUnderAttack, let attackStartAt = turf.attackStartAt, turf.attackerID != nil else { continue }
             
             // Determine time since last processing or attack start
             let timeElapsedSinceLastProcess = now.timeIntervalSince(turf.lastAttackProcessedAt ?? attackStartAt)
@@ -585,8 +589,59 @@ class GameManager: ObservableObject {
         print("Current wallet balance: $\(walletBalance)")
     }
     
+    private func startProximityTimer() {
+        proximityTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.processProximityEffects()
+            }
+        }
+    }
+    
+    private func processProximityEffects() {
+        guard let currentPlayerId = currentPlayer?.id else { return }
+        
+        let playerOwnedTurfsWithTowers = allTurfs.values.filter {
+            $0.ownerID == currentPlayerId && $0.structures.contains(where: { $0.type == .defenseTower && !$0.isBuilding })
+        }
+        
+        guard !playerOwnedTurfsWithTowers.isEmpty else { return }
+        
+        let enemyTurfs = allTurfs.values.filter { $0.ownerID != nil && $0.ownerID != currentPlayerId }
+        
+        for turf in playerOwnedTurfsWithTowers {
+            guard let tower = turf.structures.first(where: { $0.type == .defenseTower }),
+                  let stealRadius = tower.stealRadius,
+                  let stealRate = tower.stealRate else { continue }
+            
+            let turfLocation = CLLocation(latitude: turf.latitude, longitude: turf.longitude)
+            
+            for var enemyTurf in enemyTurfs {
+                let enemyLocation = CLLocation(latitude: enemyTurf.latitude, longitude: enemyTurf.longitude)
+                let distance = turfLocation.distance(from: enemyLocation)
+                
+                if distance <= stealRadius && enemyTurf.vaultCash > 0 {
+                    let amountToSteal = min(GameConstants.baseIncomeRate * stealRate, enemyTurf.vaultCash)
+                    
+                    // Update our turf
+                    var updatedPlayerTurf = turf
+                    updatedPlayerTurf.vaultCash += amountToSteal
+                    allTurfs[turf.id] = updatedPlayerTurf
+                    
+                    // Update enemy turf
+                    enemyTurf.vaultCash -= amountToSteal
+                    allTurfs[enemyTurf.id] = enemyTurf
+                    
+                    print("💰 Stole $\(amountToSteal) from turf \(enemyTurf.id) with tower at \(turf.id)")
+                }
+            }
+        }
+        
+        updatePlayerTurfs()
+    }
+    
     deinit {
         incomeTimer?.invalidate()
         attackTimer?.invalidate()
+        proximityTimer?.invalidate()
     }
 }

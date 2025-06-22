@@ -20,33 +20,14 @@ struct MapView: UIViewRepresentable {
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = true
         mapView.userTrackingMode = .none
+        mapView.register(TurfAnnotationView.self, forAnnotationViewWithReuseIdentifier: MKMapViewDefaultAnnotationViewReuseIdentifier)
         
-        // Store reference to mapView in coordinator
         context.coordinator.mapView = mapView
         
-        // Add tap gesture recognizer
-        let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleMapTap(_:)))
-        mapView.addGestureRecognizer(tapGesture)
-        
-        // Set initial region - use default location if no user location
-        let initialLocation = locationService.currentLocation?.coordinate ?? 
-                            CLLocationCoordinate2D(latitude: 37.3349, longitude: -122.0090)
-        let region = MKCoordinateRegion(
-            center: initialLocation,
-            latitudinalMeters: 500,
-            longitudinalMeters: 500
-        )
+        let initialLocation = locationService.currentLocation?.coordinate ?? CLLocationCoordinate2D(latitude: 37.3349, longitude: -122.0090)
+        let region = MKCoordinateRegion(center: initialLocation, latitudinalMeters: 2000, longitudinalMeters: 2000)
         mapView.setRegion(region, animated: false)
         
-        // Add size validation to prevent Metal layer issues
-        DispatchQueue.main.async {
-            if mapView.bounds.size.width > 0 && mapView.bounds.size.height > 0 {
-                // Safe to proceed with Metal layer operations
-                mapView.setNeedsDisplay()
-            }
-        }
-        
-        // Listen for center on user notification
         NotificationCenter.default.addObserver(
             context.coordinator,
             selector: #selector(Coordinator.centerOnUser(_:)),
@@ -58,37 +39,35 @@ struct MapView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: MKMapView, context: Context) {
-        // Update hex overlays
-        updateHexOverlays(on: uiView)
-        
-        // Update user location region if available
-        if let location = locationService.currentLocation {
-            let currentRegion = uiView.region
-            let userLocation = location.coordinate
-            
-            // Only update region if user has moved significantly
-            let distance = CLLocation(latitude: currentRegion.center.latitude, longitude: currentRegion.center.longitude)
-                .distance(from: location)
-            
-            if distance > 100 { // 100 meters
-                let region = MKCoordinateRegion(
-                    center: userLocation,
-                    latitudinalMeters: 500,
-                    longitudinalMeters: 500
-                )
-                uiView.setRegion(region, animated: true)
-            }
-        }
+        updateAnnotations(on: uiView)
     }
     
-    private func updateHexOverlays(on mapView: MKMapView) {
-        // Remove existing overlays
-        mapView.removeOverlays(mapView.overlays)
+    private func updateAnnotations(on mapView: MKMapView) {
+        // Find annotations to add or remove
+        let existingAnnotations = mapView.annotations.compactMap { $0 as? TurfAnnotation }
+        let existingTurfIDs = Set(existingAnnotations.map { $0.turf.id })
+        let nearbyTurfIDs = Set(gameManager.nearbyTurfs.map { $0.id })
         
-        // Add hex overlays for nearby turfs
-        for turf in gameManager.nearbyTurfs {
-            let hexOverlay = HexOverlay(turf: turf)
-            mapView.addOverlay(hexOverlay)
+        let turfsToAdd = gameManager.nearbyTurfs.filter { !existingTurfIDs.contains($0.id) }
+        let annotationsToRemove = existingAnnotations.filter { !nearbyTurfIDs.contains($0.turf.id) }
+        
+        // Add new annotations
+        mapView.addAnnotations(turfsToAdd.map { TurfAnnotation(turf: $0) })
+        
+        // Remove old annotations
+        mapView.removeAnnotations(annotationsToRemove)
+        
+        // Update existing annotations that might have changed state
+        for annotation in existingAnnotations {
+            if let updatedTurf = gameManager.nearbyTurfs.first(where: { $0.id == annotation.turf.id }) {
+                if annotation.turf.ownerID != updatedTurf.ownerID || annotation.turf.isUnderAttack != updatedTurf.isUnderAttack {
+                    // This is a bit of a hack. MKAnnotation is not directly updatable.
+                    // A better approach would be a custom notification system or more advanced state management.
+                    // For now, we'll remove and re-add to force a refresh.
+                    mapView.removeAnnotation(annotation)
+                    mapView.addAnnotation(TurfAnnotation(turf: updatedTurf))
+                }
+            }
         }
     }
     
@@ -104,103 +83,117 @@ struct MapView: UIViewRepresentable {
             self.parent = parent
         }
         
-        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            if let hexOverlay = overlay as? HexOverlay {
-                let renderer = MKPolygonRenderer(polygon: hexOverlay.polygon)
-                
-                // Color based on turf ownership
-                let color = hexColor(for: hexOverlay.turf)
-                renderer.fillColor = color.withAlphaComponent(0.3)
-                renderer.strokeColor = color
-                renderer.lineWidth = 2.0
-                
-                return renderer
-            }
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            guard let turfAnnotation = annotation as? TurfAnnotation else { return nil }
             
-            return MKOverlayRenderer(overlay: overlay)
+            let view = mapView.dequeueReusableAnnotationView(withIdentifier: MKMapViewDefaultAnnotationViewReuseIdentifier, for: turfAnnotation) as! TurfAnnotationView
+            view.configure(with: turfAnnotation.turf, gameManager: parent.gameManager)
+            return view
         }
         
-        @objc func handleMapTap(_ gesture: UITapGestureRecognizer) {
-            let mapView = gesture.view as! MKMapView
-            let point = gesture.location(in: mapView)
-            let coordinate = mapView.convert(point, toCoordinateFrom: mapView)
-            
-            // Find the nearest turf to the tap location
-            var nearestTurf: Turf?
-            var minDistance = Double.infinity
-            
-            for turf in parent.gameManager.nearbyTurfs {
-                let turfLocation = CLLocation(latitude: turf.latitude, longitude: turf.longitude)
-                let tapLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-                let distance = turfLocation.distance(from: tapLocation)
-                
-                if distance < minDistance && distance < 50 { // Within 50 meters
-                    minDistance = distance
-                    nearestTurf = turf
-                }
-            }
-            
-            if let turf = nearestTurf {
-                parent.selectedTurf = turf
-                parent.showingActionSheet = true
-            }
+        func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            guard let turfAnnotation = view.annotation as? TurfAnnotation else { return }
+            parent.selectedTurf = turfAnnotation.turf
+            parent.showingActionSheet = true
+            mapView.deselectAnnotation(view.annotation, animated: false) // Deselect to allow re-tapping
         }
         
         @objc func centerOnUser(_ notification: Notification) {
             guard let mapView = self.mapView,
                   let location = notification.object as? CLLocation else { return }
             
-            let region = MKCoordinateRegion(
-                center: location.coordinate,
-                latitudinalMeters: 500,
-                longitudinalMeters: 500
-            )
+            let region = MKCoordinateRegion(center: location.coordinate, latitudinalMeters: 500, longitudinalMeters: 500)
             mapView.setRegion(region, animated: true)
-        }
-        
-        private func hexColor(for turf: Turf) -> UIColor {
-            if turf.isUnderAttack {
-                return .systemRed
-            } else if turf.isNeutral {
-                return .systemGray
-            } else if turf.ownerID == parent.gameManager.currentPlayer?.id {
-                return .systemBlue
-            } else {
-                return .systemRed
-            }
         }
     }
 }
 
-// MARK: - HexOverlay
-class HexOverlay: NSObject, MKOverlay {
+// MARK: - TurfAnnotation
+class TurfAnnotation: NSObject, MKAnnotation {
     let turf: Turf
-    let polygon: MKPolygon
     
     init(turf: Turf) {
         self.turf = turf
-        
-        // Create hexagon points
-        let hexSize = GameConstants.hexGridSize * 0.8 // Slightly smaller for visual spacing
-        let center = turf.coordinate
-        
-        var coordinates: [CLLocationCoordinate2D] = []
-        for i in 0..<6 {
-            let angle = Double(i) * Double.pi / 3.0
-            let lat = center.latitude + hexSize * cos(angle)
-            let lon = center.longitude + hexSize * sin(angle)
-            coordinates.append(CLLocationCoordinate2D(latitude: lat, longitude: lon))
-        }
-        
-        self.polygon = MKPolygon(coordinates: coordinates, count: coordinates.count)
         super.init()
     }
     
-    var coordinate: CLLocationCoordinate2D {
+    @objc dynamic var coordinate: CLLocationCoordinate2D {
         return turf.coordinate
     }
     
-    var boundingMapRect: MKMapRect {
-        return polygon.boundingMapRect
+    // For comparison
+    override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? TurfAnnotation else { return false }
+        return turf.id == other.turf.id
+    }
+    
+    override var hash: Int {
+        return turf.id.hashValue
+    }
+}
+
+// MARK: - TurfAnnotationView
+class TurfAnnotationView: MKAnnotationView {
+    private var shapeLayer = CAShapeLayer()
+    private var iconImageView = UIImageView()
+    
+    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        self.frame = CGRect(x: 0, y: 0, width: 60, height: 60)
+        
+        // Setup shape layer for hexagon
+        let path = UIBezierPath()
+        let center = CGPoint(x: bounds.midX, y: bounds.midY)
+        let radius = bounds.width / 2
+        
+        for i in 0..<6 {
+            let angle = CGFloat(i) * .pi / 3 - .pi / 6
+            let x = center.x + radius * cos(angle)
+            let y = center.y + radius * sin(angle)
+            if i == 0 {
+                path.move(to: CGPoint(x: x, y: y))
+            } else {
+                path.addLine(to: CGPoint(x: x, y: y))
+            }
+        }
+        path.close()
+        
+        shapeLayer.path = path.cgPath
+        shapeLayer.lineWidth = 2.0
+        shapeLayer.fillColor = UIColor.gray.withAlphaComponent(0.5).cgColor
+        shapeLayer.strokeColor = UIColor.gray.cgColor
+        layer.addSublayer(shapeLayer)
+        
+        // Setup icon image view
+        iconImageView.frame = bounds.insetBy(dx: 15, dy: 15)
+        iconImageView.contentMode = .scaleAspectFit
+        addSubview(iconImageView)
+    }
+    
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    func configure(with turf: Turf, gameManager: GameManager) {
+        let color = colorForTurf(turf, gameManager: gameManager)
+        shapeLayer.fillColor = color.withAlphaComponent(0.5).cgColor
+        shapeLayer.strokeColor = color.cgColor
+        
+        if turf.isUnderAttack {
+            iconImageView.image = UIImage(systemName: "exclamationmark.triangle.fill")?.withTintColor(.white, renderingMode: .alwaysOriginal)
+            iconImageView.isHidden = false
+        } else {
+            iconImageView.isHidden = true
+        }
+    }
+    
+    private func colorForTurf(_ turf: Turf, gameManager: GameManager) -> UIColor {
+        if turf.isNeutral {
+            return .systemGray
+        } else if turf.ownerID == gameManager.currentPlayer?.id {
+            return .systemBlue
+        } else {
+            return .systemRed
+        }
     }
 }
