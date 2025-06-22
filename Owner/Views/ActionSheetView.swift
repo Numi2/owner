@@ -18,6 +18,7 @@ struct ActionSheetView: View {
     @State private var selectedWeapon: WeaponPack = WeaponPack.basic
     @State private var showingInvestAlert = false
     @State private var showingAttackConfirmation = false
+    @State private var reinforceAmount: Double = 10.0
     
     private var isPlayerOwned: Bool {
         turf.ownerID == gameManager.currentPlayer?.id
@@ -35,7 +36,7 @@ struct ActionSheetView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 // Turf Info Header
                 VStack(spacing: 8) {
@@ -86,13 +87,93 @@ struct ActionSheetView: View {
                     }
                     
                     if turf.isUnderAttack {
-                        HStack {
-                            Text("Status:")
-                            Spacer()
-                            Text("Under Attack!")
-                                .fontWeight(.bold)
+                        VStack(alignment: .leading) {
+                            Text("🔥 Under Attack!")
+                                .font(.headline)
                                 .foregroundColor(.red)
+                            Text("Attacker: \(turf.attackerID ?? "Unknown")")
+                                .font(.subheadline)
+                            // Display attack progress
+                            ProgressView(value: turf.currentDefenseHealth, total: turf.defenseValue) {
+                                Text("Defense Health")
+                            } currentValueLabel: {
+                                Text("\(turf.currentDefenseHealth, specifier: "%.0f") / \(turf.defenseValue, specifier: "%.0f")")
+                            }
+                            .progressViewStyle(.linear)
+                            .tint(.red)
+                            
+                            // Time remaining
+                            if let attackStart = turf.attackStartAt {
+                                Text("Time Remaining: \(max(0, turf.attackTTL - Date().timeIntervalSince(attackStart)), specifier: "%.0f")s")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
+                        .padding(.vertical, 5)
+                    }
+                    
+                    // New: Structures Section
+                    if isPlayerOwned {
+                        VStack(alignment: .leading) {
+                            Text("Structures")
+                                .font(.headline)
+                                .padding(.bottom, 5)
+                            
+                            if turf.structures.isEmpty {
+                                Text("No structures built on this turf yet.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                ForEach(turf.structures.sorted(by: { $0.type.rawValue < $1.type.rawValue }), id: \.id) { structure in
+                                    VStack(alignment: .leading) {
+                                        HStack {
+                                            Text("\(structure.type.rawValue) (Lv\(structure.level))")
+                                                .font(.subheadline)
+                                            Spacer()
+                                            if structure.isBuilding {
+                                                ProgressView(value: structure.buildProgress) {
+                                                    Text("Building")
+                                                } currentValueLabel: {
+                                                    Text("\(structure.buildProgress * 100, specifier: "%.0f")%")
+                                                }
+                                                .progressViewStyle(.linear)
+                                                .tint(.orange)
+                                            } else {
+                                                Text("Active")
+                                                    .foregroundColor(.green)
+                                            }
+                                        }
+                                        if !structure.isBuilding {
+                                            Button("Upgrade (\(structure.type.rawValue)) - $\(structure.currentCost, specifier: "%.0f")") {
+                                                gameManager.upgradeStructure(on: turf, structureID: structure.id)
+                                            }
+                                            .buttonStyle(.bordered)
+                                            .tint(.blue)
+                                            .disabled(gameManager.walletBalance < structure.currentCost)
+                                        }
+                                    }
+                                    .padding(.vertical, 2)
+                                }
+                            }
+                            
+                            // Build new structures
+                            VStack {
+                                ForEach(Structure.StructureType.allCases, id: \.self) { type in
+                                    let newStructure = Structure(type: type)
+                                    let alreadyHasStructure = turf.structures.contains(where: { $0.type == type })
+                                    
+                                    Button("Build \(type.rawValue) - $\(newStructure.baseCost, specifier: "%.0f")") {
+                                        gameManager.buildStructure(on: turf, type: type)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.purple)
+                                    .disabled(gameManager.walletBalance < newStructure.baseCost || alreadyHasStructure)
+                                }
+                            }
+                            .padding(.top, 5)
+                        }
+                        .padding(.horizontal)
+                        .padding(.bottom, 10)
                     }
                 }
                 .glassCard()
@@ -146,6 +227,24 @@ struct ActionSheetView: View {
                                 .cornerRadius(12)
                         }
                         .buttonStyle(ScaleButtonStyle())
+                        
+                        // New: Reinforce Button
+                        if turf.isUnderAttack && turf.ownerID == gameManager.currentPlayer?.id {
+                            VStack {
+                                Slider(value: $reinforceAmount, in: 10.0...min(gameManager.walletBalance, turf.defenseValue - turf.currentDefenseHealth), step: 10.0) {
+                                    Text("Reinforce Amount: $\(reinforceAmount, specifier: "%.0f")")
+                                }
+                                .tint(.green)
+                                
+                                Button("Reinforce ($\(reinforceAmount, specifier: "%.0f"))") {
+                                    gameManager.reinforceTurf(turf, amount: reinforceAmount)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.green)
+                                .disabled(gameManager.walletBalance < reinforceAmount || reinforceAmount == 0)
+                            }
+                            .padding(.top, 5)
+                        }
                     }
                     
                     if !isPlayerOwned && !turf.isNeutral && isInRange && !turf.isUnderAttack {
@@ -227,6 +326,9 @@ struct ActionSheetView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("Attack with \(selectedWeapon.name) for $\(selectedWeapon.cost, specifier: "%.0f")?\n\nYour AV: \(selectedWeapon.attackValue, specifier: "%.0f")\nTheir DV: \(turf.defenseValue, specifier: "%.0f")")
+        }
+        .onAppear {
+            reinforceAmount = 10.0
         }
     }
 }

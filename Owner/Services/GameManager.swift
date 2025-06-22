@@ -23,6 +23,7 @@ class GameManager: ObservableObject {
     // In-memory storage for Phase 2 (local-only)
     private var allTurfs: [String: Turf] = [:]
     private var incomeTimer: Timer?
+    private var attackTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
     
     // Services - these will be injected via environment
@@ -46,6 +47,9 @@ class GameManager: ObservableObject {
         
         // Start income timer
         startIncomeTimer()
+        
+        // New: Start attack timer
+        startAttackTimer()
         
         // Subscribe to location updates if location service is available
         setupLocationSubscription()
@@ -132,21 +136,36 @@ class GameManager: ObservableObject {
         let now = Date()
         var totalIncome = 0.0
         
-        for (turfId, turf) in allTurfs {
+        for (turfId, var turf) in allTurfs {
             guard turf.ownerID == currentPlayer?.id else { continue }
             
+            // Check for completed structures and activate them
+            for i in 0..<turf.structures.count {
+                if turf.structures[i].isBuilding && turf.structures[i].buildProgress >= 1.0 {
+                    turf.structures[i].buildStartAt = nil // Mark as built
+                    print("✅ Structure \(turf.structures[i].type.rawValue) on turf \(turf.id) completed building!")
+                }
+            }
+
             let timeSinceLastIncome = now.timeIntervalSince(turf.lastIncomeAt)
             let incomeIntervals = timeSinceLastIncome / GameConstants.incomeInterval
             
             if incomeIntervals >= 1.0 {
-                let income = GameConstants.baseIncomeRate * incomeIntervals
-                totalIncome += income
+                var turfIncome = GameConstants.baseIncomeRate * incomeIntervals
+                
+                // Add income from structures
+                for structure in turf.structures {
+                    if !structure.isBuilding && structure.type == .incomeGenerator {
+                        turfIncome += structure.currentIncomeBonus * incomeIntervals
+                    }
+                }
+                
+                totalIncome += turfIncome
                 
                 // Update turf
-                var updatedTurf = turf
-                updatedTurf.vaultCash += income
-                updatedTurf.lastIncomeAt = now
-                allTurfs[turfId] = updatedTurf
+                turf.vaultCash += turfIncome
+                turf.lastIncomeAt = now
+                allTurfs[turfId] = turf
             }
         }
         
@@ -154,6 +173,98 @@ class GameManager: ObservableObject {
             updatePlayerTurfs()
             print("Passive income: $\(totalIncome)")
         }
+    }
+    
+    private func startAttackTimer() {
+        attackTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.processActiveAttacks()
+            }
+        }
+    }
+    
+    private func processActiveAttacks() {
+        let now = Date()
+        for (turfId, var turf) in allTurfs {
+            guard turf.isUnderAttack, let attackStartAt = turf.attackStartAt, let attackerID = turf.attackerID else { continue }
+            
+            // Determine time since last processing or attack start
+            let timeElapsedSinceLastProcess = now.timeIntervalSince(turf.lastAttackProcessedAt ?? attackStartAt)
+            let totalAttackDuration = now.timeIntervalSince(attackStartAt)
+            
+            // Check for timeout
+            if totalAttackDuration >= turf.attackTTL {
+                // Attack times out
+                resolveAttack(turf: turf, outcome: .timeout)
+                continue
+            }
+            
+            // Calculate attack progress for this interval
+            let attackTickValue = turf.pendingAV * timeElapsedSinceLastProcess / turf.attackTTL
+            
+            // Apply damage to turf's currentDefenseHealth
+            turf.currentDefenseHealth -= attackTickValue
+            
+            // Check if defense is broken
+            if turf.currentDefenseHealth <= 0 {
+                resolveAttack(turf: turf, outcome: .win)
+                continue
+            }
+            
+            // Update last processed time
+            turf.lastAttackProcessedAt = now
+            allTurfs[turfId] = turf // Update turf in storage
+            
+            // For immediate "timed" resolution, we can check at intervals.
+            // For this phase, if the attack is ongoing, just update the turf state.
+            // The actual resolution will happen at attackTTL or if defense changes.
+        }
+    }
+    
+    private func resolveAttack(turf: Turf, outcome: AttackLog.AttackOutcome) {
+        var updatedTurf = turf
+        let attackerID = turf.attackerID
+        let defenderID = turf.ownerID
+        let initialVaultCash = turf.vaultCash
+        var lootDelta = 0.0
+        
+        if outcome == .win {
+            // Attacker wins - capture turf and loot
+            let loot = min(turf.vaultCash * GameConstants.lootPercentage, turf.vaultCash)
+            if let attacker = currentPlayer, attacker.id == attackerID {
+                walletBalance += loot
+            }
+            
+            updatedTurf.ownerID = attackerID
+            updatedTurf.vaultCash -= loot
+            updatedTurf.lastIncomeAt = Date()
+            lootDelta = loot
+            
+            print("✅ Attack succeeded! Captured turf \(turf.id) and looted $\(lootDelta). Outcome: \(outcome.rawValue)")
+        } else if outcome == .loss || outcome == .timeout {
+            print("❌ Attack failed for turf \(turf.id). Outcome: \(outcome.rawValue)")
+        } else if outcome == .conflict {
+            print("⚠️ Attack conflict for turf \(turf.id). Outcome: \(outcome.rawValue)")
+        }
+        
+        updatedTurf.isUnderAttack = false
+        updatedTurf.pendingAV = 0.0
+        updatedTurf.attackerID = nil
+        updatedTurf.attackStartAt = nil
+        updatedTurf.lastAttackProcessedAt = nil // Reset
+        
+        allTurfs[turf.id] = updatedTurf
+        
+        // Update local arrays
+        if let index = nearbyTurfs.firstIndex(where: { $0.id == turf.id }) {
+            nearbyTurfs[index] = updatedTurf
+        }
+        updatePlayerTurfs()
+        
+        // Log the attack
+        let attackLog = AttackLog(turfID: turf.id, attackerID: attackerID ?? "unknown", defenderID: defenderID, av: turf.pendingAV, dv: turf.defenseValue, outcome: outcome, timestamp: Date(), lootDelta: lootDelta)
+        // TODO: Store attack log (e.g., to CloudKit or local history)
+        print("Attack Logged: \(attackLog)")
     }
     
     private func updateNearbyTurfs(around coordinate: CLLocationCoordinate2D) {
@@ -305,36 +416,72 @@ class GameManager: ObservableObject {
             return 
         }
         
+        // Check if already under attack by someone else and prevent concurrent attacks
+        guard !turf.isUnderAttack || (turf.isUnderAttack && turf.attackerID == currentPlayer.id) else {
+            print("❌ Turf is already under attack by another player!")
+            return
+        }
+
         // Deduct weapon cost
         walletBalance -= weaponPack.cost
         
-        // Simple attack resolution for Phase 2 (no mini-game yet)
-        let attackValue = weaponPack.attackValue
-        let defenseValue = turf.defenseValue
+        // Initiate timed attack
+        var updatedTurf = turf
+        updatedTurf.isUnderAttack = true
+        updatedTurf.pendingAV = weaponPack.attackValue // Set pending AV
+        updatedTurf.attackerID = currentPlayer.id
+        updatedTurf.attackStartAt = Date()
+        updatedTurf.lastAttackProcessedAt = Date() // Initialize last processed time
+        updatedTurf.currentDefenseHealth = turf.defenseValue // Initialize defense health
         
-        let attackWins = attackValue > defenseValue
-        
-        if attackWins {
-            // Attacker wins - capture turf and loot
-            let loot = min(turf.vaultCash * GameConstants.lootPercentage, turf.vaultCash)
-            walletBalance += loot
-            
-            var updatedTurf = turf
-            updatedTurf.ownerID = currentPlayer.id
-            updatedTurf.vaultCash -= loot
-            updatedTurf.lastIncomeAt = Date()
-            allTurfs[turf.id] = updatedTurf
-            
-            print("✅ Attack succeeded! Captured turf and looted $\(loot) - AV:\(attackValue) vs DV:\(defenseValue)")
-        } else {
-            print("❌ Attack failed! Lost $\(weaponPack.cost) - AV:\(attackValue) vs DV:\(defenseValue)")
-        }
+        allTurfs[turf.id] = updatedTurf
         
         // Update local arrays
         if let index = nearbyTurfs.firstIndex(where: { $0.id == turf.id }) {
-            nearbyTurfs[index] = allTurfs[turf.id]!
+            nearbyTurfs[index] = updatedTurf
         }
         updatePlayerTurfs()
+        
+        print("🚀 Initiated attack on turf: \(turf.id) with \(weaponPack.name)! Attack will resolve in \(turf.attackTTL) seconds.")
+        print("Current wallet balance: $\(walletBalance)")
+        print("Turf Defense Health: $\(updatedTurf.currentDefenseHealth)")
+    }
+    
+    func reinforceTurf(_ turf: Turf, amount: Double) {
+        guard let currentPlayer = currentPlayer else {
+            print("❌ No current player found!")
+            return
+        }
+        guard turf.ownerID == currentPlayer.id else {
+            print("❌ Can't reinforce a turf you don't own")
+            return
+        }
+        guard turf.isUnderAttack else {
+            print("❌ Turf is not under attack, no need to reinforce")
+            return
+        }
+        guard walletBalance >= amount else {
+            print("❌ Insufficient funds to reinforce - Need $\(amount), have $\(walletBalance)")
+            return
+        }
+        
+        walletBalance -= amount
+        
+        var updatedTurf = turf
+        updatedTurf.currentDefenseHealth += amount // Increase defense health
+        
+        // Ensure defense health doesn't exceed initial defense value
+        updatedTurf.currentDefenseHealth = min(updatedTurf.currentDefenseHealth, turf.defenseValue)
+        
+        allTurfs[turf.id] = updatedTurf
+        
+        // Update local arrays
+        if let index = nearbyTurfs.firstIndex(where: { $0.id == turf.id }) {
+            nearbyTurfs[index] = updatedTurf
+        }
+        updatePlayerTurfs()
+        
+        print("✅ Reinforced turf: \(turf.id) with $\(amount). New defense health: $\(updatedTurf.currentDefenseHealth)")
     }
     
     func getTurfOwnerColor(_ turf: Turf) -> String {
@@ -354,7 +501,92 @@ class GameManager: ObservableObject {
         return walletBalance + vaultTotal
     }
     
+    func buildStructure(on turf: Turf, type: Structure.StructureType) {
+        guard let currentPlayer = currentPlayer else {
+            print("❌ No current player found!")
+            return
+        }
+        guard turf.ownerID == currentPlayer.id else {
+            print("❌ Can't build on a turf you don't own")
+            return
+        }
+        
+        var newStructure = Structure(type: type)
+        guard walletBalance >= newStructure.currentCost else {
+            print("❌ Insufficient funds to build \(type.rawValue) - Need $\(newStructure.currentCost), have $\(walletBalance)")
+            return
+        }
+        
+        // Check if a similar structure is already building or built (limit to one of each type for now)
+        if turf.structures.contains(where: { $0.type == type }) {
+            print("❌ A \(type.rawValue) already exists on this turf.")
+            return
+        }
+        
+        walletBalance -= newStructure.currentCost
+        newStructure.buildStartAt = Date()
+        
+        var updatedTurf = turf
+        updatedTurf.structures.append(newStructure)
+        allTurfs[turf.id] = updatedTurf
+        
+        if let index = nearbyTurfs.firstIndex(where: { $0.id == turf.id }) {
+            nearbyTurfs[index] = updatedTurf
+        }
+        updatePlayerTurfs()
+        
+        print("✅ Started building \(type.rawValue) on turf \(turf.id) for $\(newStructure.currentCost) - Build time: \(newStructure.buildTime)s")
+        print("Current wallet balance: $\(walletBalance)")
+    }
+    
+    func upgradeStructure(on turf: Turf, structureID: UUID) {
+        guard let currentPlayer = currentPlayer else {
+            print("❌ No current player found!")
+            return
+        }
+        guard turf.ownerID == currentPlayer.id else {
+            print("❌ Can't upgrade on a turf you don't own")
+            return
+        }
+        
+        guard var structureToUpgrade = turf.structures.first(where: { $0.id == structureID }) else {
+            print("❌ Structure not found on this turf.")
+            return
+        }
+        
+        // Prevent upgrading if still building
+        guard !structureToUpgrade.isBuilding else {
+            print("❌ Cannot upgrade \(structureToUpgrade.type.rawValue) while it is still building.")
+            return
+        }
+
+        let upgradeCost = structureToUpgrade.currentCost // Cost for next level
+        guard walletBalance >= upgradeCost else {
+            print("❌ Insufficient funds to upgrade \(structureToUpgrade.type.rawValue) - Need $\(upgradeCost), have $\(walletBalance)")
+            return
+        }
+        
+        walletBalance -= upgradeCost
+        structureToUpgrade.level += 1
+        structureToUpgrade.buildStartAt = Date() // Start new build time for upgrade
+        
+        var updatedTurf = turf
+        if let index = updatedTurf.structures.firstIndex(where: { $0.id == structureID }) {
+            updatedTurf.structures[index] = structureToUpgrade
+        }
+        allTurfs[turf.id] = updatedTurf
+        
+        if let index = nearbyTurfs.firstIndex(where: { $0.id == turf.id }) {
+            nearbyTurfs[index] = updatedTurf
+        }
+        updatePlayerTurfs()
+        
+        print("✅ Started upgrading \(structureToUpgrade.type.rawValue) on turf \(turf.id) to level \(structureToUpgrade.level) for $\(upgradeCost) - Build time: \(structureToUpgrade.buildTime)s")
+        print("Current wallet balance: $\(walletBalance)")
+    }
+    
     deinit {
         incomeTimer?.invalidate()
+        attackTimer?.invalidate()
     }
 }
