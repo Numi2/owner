@@ -46,7 +46,7 @@ class SafetyService {
         }
         
         do {
-            let content = try String(contentsOfFile: path)
+            let content = try String(contentsOfFile: path, encoding: .utf8)
             return content
         } catch {
             print("⚠️  Failed to load resource file '\(fileName).\(type)': \(error.localizedDescription)")
@@ -85,3 +85,4 @@ class SafetyService {
         layer.drawableSize = size
     }
 }
+

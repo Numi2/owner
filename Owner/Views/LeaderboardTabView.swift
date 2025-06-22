@@ -131,7 +131,7 @@ struct PlayerStatsCard: View {
             
             // Stats Grid
             HStack(spacing: 20) {
-                StatItem(title: "Net Worth", value: "$\(gameManager.netWorth(), specifier: "%.0f")", icon: "dollarsign.circle.fill", color: .green)
+                StatItem(title: "Net Worth", value: String(format: "$%.0f", gameManager.netWorth()), icon: "dollarsign.circle.fill", color: .green)
                 StatItem(title: "Turfs", value: "\(gameManager.playerTurfs.count)", icon: "hexagon.fill", color: .blue)
                 StatItem(title: "Rank", value: "Top 5%", icon: "chart.line.uptrend.xyaxis", color: .orange)
             }

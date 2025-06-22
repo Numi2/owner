@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 struct MainView: View {
     @EnvironmentObject var gameManager: GameManager

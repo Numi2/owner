@@ -39,7 +39,7 @@ class GameCenterService: ObservableObject {
                     return
                 }
                 
-                if let viewController = viewController {
+                if viewController != nil {
                     // Present authentication view controller
                     // Note: In a real app, you'd present this from your main view controller
                     print("Need to present Game Center authentication view controller")
@@ -50,7 +50,7 @@ class GameCenterService: ObservableObject {
                 if GKLocalPlayer.local.isAuthenticated {
                     self?.isAuthenticated = true
                     self?.localPlayer = GKLocalPlayer.local
-                    print("✅ Game Center authenticated: \(GKLocalPlayer.local.displayName ?? "Unknown")")
+                    print("✅ Game Center authenticated: \(GKLocalPlayer.local.displayName)")
                     self?.loadPlayerData()
                 } else {
                     self?.isAuthenticated = false

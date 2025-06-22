@@ -80,7 +80,7 @@ struct Turf: Codable, Identifiable {
 
 // MARK: - WeaponPack Model
 struct WeaponPack: Codable, Identifiable {
-    let id = UUID()
+    var id: UUID = UUID()
     let name: String
     let cost: Double
     let attackValue: Double
@@ -94,7 +94,7 @@ struct WeaponPack: Codable, Identifiable {
 
 // MARK: - Attack Log Model
 struct AttackLog: Codable, Identifiable {
-    let id = UUID()
+    var id: UUID = UUID()
     let turfID: String
     let attackerID: String
     let defenderID: String?

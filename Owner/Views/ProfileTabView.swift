@@ -134,8 +134,8 @@ struct StatsOverviewSection: View {
                 .font(.headline)
             
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                StatCard(title: "Net Worth", value: "$\(gameManager.netWorth(), specifier: "%.0f")", icon: "dollarsign.circle.fill", color: .green)
-                StatCard(title: "Wallet", value: "$\(gameManager.walletBalance, specifier: "%.0f")", icon: "wallet.pass.fill", color: .blue)
+                StatCard(title: "Net Worth", value: "$\(String(format: "%.0f", gameManager.netWorth()))", icon: "dollarsign.circle.fill", color: .green)
+                StatCard(title: "Wallet", value: "$\(String(format: "%.0f", gameManager.walletBalance))", icon: "wallet.pass.fill", color: .blue)
                 StatCard(title: "Total Turfs", value: "\(gameManager.playerTurfs.count)", icon: "hexagon.fill", color: .purple)
                 StatCard(title: "Defense Average", value: "Lvl \(averageDefenseLevel())", icon: "shield.fill", color: .orange)
             }
